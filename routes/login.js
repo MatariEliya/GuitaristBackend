@@ -1,42 +1,29 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const pool = require("../dataBase"); // חיבור ל-DB
+const bcrypt = require("bcryptjs"); // החלפה כאן
 const { createToken } = require("../tokens");
+const repository = require("../Repositories/loginAndSignup");
 
 const router = express.Router();
 
 router.post("/", async (req, res) => {
     const { username, password } = req.body;
-
     try {
-        const userResult = await pool.query(
-            "SELECT user_id, hashed_password FROM users WHERE username = $1",
-            [username]
-        );
-
-        if (!userResult.rows.length) {
+        const userResult = await repository.getUserInfo(username);
+        if (!userResult) {
             return res.status(401).json();
         }
         
         const validPassword = await bcrypt.compare(
             password,
-            userResult.rows[0].hashed_password
+            userResult.hashed_password
         );
         if(!validPassword){
             return res.status(401).json();
         }
 
+        const token = createToken({ username, creator: userResult.creator, user_id: userResult.user_id });
 
-        const creatorResult = await pool.query(
-            "SELECT * FROM creators WHERE user_id = $1",
-            [userResult.rows[0].user_id]
-        );
-        const creator = creatorResult.rows.length > 0;
-
-        const token = createToken({ username, creator, user_id: userResult.rows[0].user_id });
-
-        res.json({ token, creator});
+        res.json({ token, creator: userResult.creator });
     } catch (err) {
         console.error(err);
         res.status(500).send("Server error");

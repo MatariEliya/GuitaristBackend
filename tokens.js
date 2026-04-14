@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 
 function createToken(userInfo) {
-    const tokenKey = "dkflgihp6960gy98"; // מפתח שמאמת אם התוקן נוצר על ידי השרת
+    const tokenKey = "dkflgihp6960gy98";
     return jwt.sign(userInfo, tokenKey, { expiresIn: "24h" });
 }
 

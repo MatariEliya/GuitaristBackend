@@ -15,6 +15,8 @@ const storage = multer.diskStorage({
     filename: (req, file, cb) => {
         const username = req.user?.username || "unknown";
         cb(null, `${username}_draft.webp`);
+        //אני משתממש פה בשם משתמש כיוון ששני אנשים יכולים לשלוח בקשה באותו הזמן ואז קובץ אחד יכול להעלות על השני 
+        // אבל אם יש לי שם משתמש אז זה לא יקרה כי כל אחד יש לו שם משתמש שונה
     }
 });
 

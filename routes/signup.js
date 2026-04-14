@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const {createToken} = require("../tokens")
-const pool = require("../dataBase"); // נתיב לקובץ שמייצר את Pool
+const repository = require("../Repositories/loginAndSignup");
 
 // Route ליצירת משתמש חדש
 router.post("/", async (req, res) => {
@@ -13,26 +13,15 @@ router.post("/", async (req, res) => {
     }
 
     try {
-        // קודם בודקים אם המשתמש כבר קיים
-        const userCheck = await pool.query(
-            "SELECT * FROM users WHERE username = $1",
-            [username]
-        );
-
-        if (userCheck.rows.length > 0) {
-            return res.status(400).json({ error: "Username already exists" });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         // יצירת משתמש חדש
-        const newUser = await pool.query(
-            "INSERT INTO users (username, hashed_password) VALUES ($1, $2) RETURNING user_id, username",
-            [username, hashedPassword]
-        );
-
+        const newUser = await repository.createUser(username, hashedPassword);
+        if (newUser.rows.length === 0) {
+            return res.status(400).json({ error: "Username already exists" });
+        }
         // מחזיר את המשתמש שנוצר
-        const token = createToken({username, creator: false})
+        const token = createToken({username, creator: false, user_id: newUser.rows[0].user_id});
         res.status(201).json({token});
     } catch (err) {
         console.error(err);

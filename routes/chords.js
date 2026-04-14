@@ -1,39 +1,11 @@
 const express = require("express");
-const pool = require("../dataBase");
+const repository = require("../Repositories/chordsRep");
 const { checkToken } = require("../tokens");
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-    /*const verified = checkToken(req.headers);
-    let addStaredChord = null;
-    if (verified) {
-        member_id = verified.user_id;
-    }*/
     try {
-        const result = await pool.query(`
-            SELECT
-                chords.name,
-                chords.capo,
-                chords.mute,
-                chords.difficult,
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'string', COALESCE(fingers.string, 0),
-                            'fret', COALESCE(fingers.fret, 0),
-                            'barre', COALESCE(fingers.barre, 0),
-                            'isExist', CASE WHEN fingers.chord_id IS NULL THEN false ELSE true END
-                        ) ORDER BY f_num.finger_number
-                    ),
-                    '[]'
-                ) AS fingers
-            FROM chords
-            CROSS JOIN LATERAL generate_series(1, 4) AS f_num(finger_number)
-            LEFT JOIN fingers 
-                ON fingers.chord_id = chords.chord_id 
-            AND fingers.finger_number = f_num.finger_number
-            GROUP BY chords.chord_id, chords.name, chords.capo, chords.mute, chords.difficult;
-        `);
+        const result = await repository.getChords();
         res.json(result.rows);
 
     } catch (error) {
@@ -56,15 +28,12 @@ router.post("/", async (req, res) => {
     if (mute > 63 || !Number.isInteger(mute)) {
         return res.status(400).json({ message: "Invalid mute" });
     }
+    if (!name) {
+        return res.status(400).json({ message: "Name is required" });
+    }
 
     try {
-        const chord_result = await pool.query(
-            `INSERT INTO chords (creator_id, name, capo, mute, difficult)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING chord_id`,
-            [creator_id, name, capo || 0, mute, difficult || false]
-        );
-
+        const chord_result = await repository.postChord(creator_id, name, capo || 0, mute, difficult || false);
         const chord_id = chord_result.rows[0].chord_id;
 
         //יצירת אצבעות
@@ -86,14 +55,7 @@ router.post("/", async (req, res) => {
             placeholders = placeholders.join(", ");
 
 
-            const finger_result = await pool.query(
-                `INSERT INTO fingers (chord_id, finger_number, string, fret, barre)
-                VALUES ${placeholders}
-                RETURNING *
-                `,
-                
-                [chord_id, ...values]
-            );
+            const finger_result = await repository.postFingers(chord_id, placeholders, values);
 
             res.json("fingers", finger_result.rows);
         }else{
@@ -114,32 +76,7 @@ router.get("/:id", async (req, res) => {
         return res.status(400).json({ message: "Creator ID is required" });
     }
     try {
-        const result = await pool.query(`
-            SELECT
-                chords.chord_id AS "chordId",
-                chords.name,
-                chords.capo,
-                chords.mute,
-                chords.difficult,
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'string', COALESCE(fingers.string, 0),
-                            'fret', COALESCE(fingers.fret, 0),
-                            'barre', COALESCE(fingers.barre, 0),
-                            'isExist', CASE WHEN fingers.chord_id IS NULL THEN false ELSE true END
-                        ) ORDER BY f_num.finger_number
-                    ),
-                    '[]'
-                ) AS fingers
-            FROM chords
-            CROSS JOIN LATERAL generate_series(1, 4) AS f_num(finger_number)
-            LEFT JOIN fingers 
-                ON fingers.chord_id = chords.chord_id 
-            AND fingers.finger_number = f_num.finger_number
-            WHERE chords.creator_id = $1
-            GROUP BY chords.chord_id, chords.name, chords.capo, chords.mute, chords.difficult;
-        `, [creator_id]);
+        const result = await repository.getChordsByCreator(creator_id);
         res.json(result.rows);
     } catch (error) {
         console.error(error);
@@ -156,11 +93,7 @@ router.delete("/:id", async (req, res) => {
     const creator_id = verified.user_id;
     const chord_id = req.params.id;
     try {
-        const result = await pool.query(`
-            DELETE FROM chords
-            WHERE creator_id = $1 AND chord_id = $2
-            RETURNING chord_id
-            `, [creator_id, chord_id]);
+        const result = await repository.deleteChord(creator_id, chord_id);
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "Chord not found" });
         }
