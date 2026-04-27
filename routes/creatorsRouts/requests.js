@@ -1,15 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { checkToken } = require("../../tokens");
+const { checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator } = require("../../tokens");
 const repositories = require("../../Repositories/creatorsRep");
 
 
-router.post("/", async (req, res) => {
-    const verified = checkToken(req.headers);
-    if (!verified) {
-        return res.status(401).json({ message: "Invalid token" });
-    }
-    
+router.post("/", checkTokenMiddleware, async (req, res) => {
     const { creatorID, request } = req.body;
 
     try {
@@ -22,14 +17,10 @@ router.post("/", async (req, res) => {
 });
 
 
-router.get("/", async (req, res) => {
-    const verified = checkToken(req.headers);
-    if (!verified?.creator) {
-        return res.status(401).json({ message: "Invalid token" });
-    }
+router.get("/", checkTokenMiddlewareCreator, async (req, res) => {
 
     try {
-        const result = await repositories.getRequestsByCreator(verified.user_id);
+        const result = await repositories.getRequestsByCreator(req.user.user_id);
 
         res.json(result.rows);
     } catch (err) {
@@ -39,13 +30,8 @@ router.get("/", async (req, res) => {
 });
 
 
-router.delete("/:id", async (req, res) => {
-    const verified = checkToken(req.headers);
-    if (!verified?.creator) {
-        return res.status(401).json({ message: "Invalid token" });
-    }
-
-    const userId = verified.user_id;
+router.delete("/:id", checkTokenMiddlewareCreator, async (req, res) => {
+    const userId = req.user.user_id;
     const request_id = req.params.id;
 
     try {

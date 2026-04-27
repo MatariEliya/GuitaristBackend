@@ -3,14 +3,14 @@ const fs = require("fs");
 const path = require("path");
 
 const repository = require("../Repositories/songsRep");
-const { checkToken } = require("../tokens");
+const { checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator } = require("../tokens");
 const { upload } = require("./uploadImages");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
     const userId = checkToken(req.headers)?.user_id;
-    search = req.query.search;
+    const search = req.query.search;
     try {
         const result = await repository.getSongsByUser(userId, search);
         res.json(result.rows);
@@ -54,11 +54,7 @@ router.get("/:id", async (req, res) => {
 
         const songResult = (await repository.getSongById(songId, userId)).rows[0];
 
-
-
-        //חיפוש אקורדים לפי שיר
-        const chordsResult = await repository.getSongChords(songId);
-        res.json({ ...songResult, chords: chordsResult.rows });
+        res.json(songResult);
 
     } catch (error) {
         console.error(error);
@@ -66,14 +62,11 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-router.post("/", checkTokenMiddleware, upload.single("image"), async (req, res) => {
+router.post("/", checkTokenMiddlewareCreator, upload.single("image"), async (req, res) => {
     try {
-        const verified = checkToken(req.headers);
-        if (!verified?.creator) {
-            return res.status(401).json({ message: "Invalid token" });
-        }
+        
 
-        const creator_id = verified.user_id;
+        const creator_id = req.user.user_id;
         const { songName, artistName, startOnRight, lyrics, chords } = req.body;
 
         const chordsArray = JSON.parse(chords);
@@ -123,14 +116,11 @@ router.post("/", checkTokenMiddleware, upload.single("image"), async (req, res) 
 });
 
 
-router.post("/:id/favorite", async (req, res) => {
-    try {
-        const verified = checkToken(req.headers);
-        if (!verified) {
-            return res.status(401).json({ message: "Invalid token" });
-        }
+router.post("/:id/favorite", checkTokenMiddleware, async (req, res) => {
 
-        const user_id = verified.user_id;
+
+    try {
+        const user_id = req.user.user_id;
         const song_id = req.params.id;
         const favorite = req.body.favorite;
         
@@ -149,14 +139,63 @@ router.post("/:id/favorite", async (req, res) => {
     }
 });
 
-router.delete("/:id", async (req, res) => {
+router.put("/:id", checkTokenMiddlewareCreator, upload.single("image"), async (req, res) => {
     try {
-        const verified = checkToken(req.headers);
-        if (!verified?.creator) {
-            return res.status(401).json({ message: "Invalid token" });
+        const creator_id = req.user.user_id;
+        const song_id = req.params.id;
+        const { songName, artistName, startOnRight, lyrics, chords } = req.body;
+        const chordsArray = JSON.parse(chords);
+
+        const result = await repository.updateSong(creator_id, song_id, songName, artistName, startOnRight, lyrics);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Song not found" });
+        }
+        await repository.deleteSongChords(song_id);
+
+        const placeholders = [];
+        const values = [];
+
+        for (let i = 0; i < chordsArray.length; i++) {
+            placeholders.push(`($${1}, $${i * 2 + 2}, $${i * 2 + 3})`);
+            values.push(chordsArray[i].chordId, chordsArray[i].indexChord);
+        }
+        if (placeholders.length > 0) {
+            try {
+                await repository.addSongChords(song_id, placeholders, values);
+            } catch (error) {
+                console.error("Error updating song chords:", error);
+                return res.status(500).json({ message: "Failed to update song chords" });
+            }
         }
 
-        const creator_id = verified.user_id;
+        // שינוי שם הקובץ
+        if (req.file) {
+            const newPath = path.join(
+                __dirname,
+                "../images",
+                `${song_id}_song.webp`
+            );
+
+            fs.renameSync(req.file.path, newPath);
+        }else {
+            fs.unlink(path.join(__dirname, "../images", `${song_id}_song.webp`), (err) => {
+                if (err && err.code !== "ENOENT") {
+                    // מתעלם כאשר התמונה לא קיימת
+                    console.error("Error deleting image:", err);
+                }
+            });
+        }
+
+        res.json({ message: "Song updated" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+router.delete("/:id", checkTokenMiddlewareCreator, async (req, res) => {
+    try {
+        const creator_id = req.user.user_id;
         const song_id = req.params.id;
 
         const result = await repository.deleteSong(creator_id, song_id);
@@ -183,14 +222,5 @@ router.delete("/:id", async (req, res) => {
 
 
 module.exports = router;
-
-
-
-function checkTokenMiddleware(req, res, next) {
-    const verified = checkToken(req.headers);
-    if (!verified?.creator) return res.status(401).json({ message: "Invalid token" });
-    req.user = { username: verified.username, user_id: verified.user_id };
-    next();
-}
 
 

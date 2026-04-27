@@ -18,4 +18,19 @@ function checkToken(headers) {
     }
 }
 
-module.exports = { createToken, checkToken };
+function checkTokenMiddleware(req, res, next) {
+    const verified = checkToken(req.headers);
+    if (!verified) return res.status(401).json({ message: "Invalid token" });
+    req.user = { username: verified.username, user_id: verified.user_id };
+    next();
+}
+
+function checkTokenMiddlewareCreator(req, res, next) {
+    const verified = checkToken(req.headers);
+    if (!verified?.creator) return res.status(401).json({ message: "Invalid token" });
+    req.user = { username: verified.username, user_id: verified.user_id };
+    next();
+}
+
+
+module.exports = { createToken, checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator };

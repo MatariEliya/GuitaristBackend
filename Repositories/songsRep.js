@@ -31,40 +31,6 @@ async function getSongsByUser(userId, search) {
     `, [userId, search]);
 }
 
-async function getSongChords(songId) {
-    return await pool.query(`
-        SELECT
-            chords.chord_id AS "chordId",
-            chords.name,
-            chords.capo,
-            chords.mute,
-            chords.difficult,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'string', COALESCE(fingers.string, 0),
-                        'fret', COALESCE(fingers.fret, 0),
-                        'barre', COALESCE(fingers.barre, 0),
-                        'isExist', CASE 
-                            WHEN fingers.chord_id IS NULL THEN false 
-                            ELSE true 
-                        END
-                    ) ORDER BY f_num.finger_number
-                ),
-                '[]'
-            ) AS fingers
-        FROM song_chords
-        JOIN chords 
-            ON chords.chord_id = song_chords.chord_id
-        CROSS JOIN LATERAL generate_series(1,4) AS f_num(finger_number)
-        LEFT JOIN fingers 
-            ON fingers.chord_id = chords.chord_id
-            AND fingers.finger_number = f_num.finger_number
-        WHERE song_chords.song_id = $1
-        GROUP BY chords.chord_id, chords.name, chords.capo, chords.mute, chords.difficult, song_chords.chord_index
-        ORDER BY song_chords.chord_index
-    `, [songId]);
-}
 
 async function getSongById(songId, userId) {
     return await pool.query(`
@@ -83,6 +49,14 @@ async function getSongById(songId, userId) {
                 )
                 ELSE false
             END AS "favorite"
+            , (
+            SELECT COALESCE(json_agg(ccd ORDER BY sc.chord_index), '[]')
+                FROM song_chords sc
+                JOIN chord_complete_data ccd ON sc.chord_id = ccd."chordId"
+                WHERE sc.song_id = s.song_id
+                
+            ) AS "chords"
+
         FROM songs s
         WHERE s.song_id = $2
     `, [userId, songId]);
@@ -119,12 +93,27 @@ async function addSongChords(songId, placeholders, values) {
     `, [songId, ...values]);
 }
 
+async function updateSong(creatorId, songId, name, artistName, startOnRight, lyrics) {
+    return await pool.query(`
+        UPDATE songs
+        SET name = $3, artist_name = $4, start_on_right = $5, lyrics = $6
+        WHERE creator_id = $1 AND song_id = $2
+        RETURNING song_id
+    `, [creatorId, songId, name, artistName, startOnRight, lyrics]);
+}
+
 async function deleteSong(creator_id, song_id) {
     return await pool.query(`
         DELETE FROM songs
         WHERE creator_id = $1 AND song_id = $2
         RETURNING song_id;
     `, [creator_id, song_id]);
+}
+async function deleteSongChords(song_id) {
+    return await pool.query(`
+        DELETE FROM song_chords
+        WHERE song_id = $1
+    `, [song_id]);
 }
 
 async function addSongToFavorite(userId, songId) {
@@ -145,11 +134,12 @@ module.exports = {
     getSongsByCreator,
     getSongsByUser,
     getSongById,
-    getSongChords,
     getPopularSongs,
     addSong,
     addSongChords,
+    updateSong,
     deleteSong,
+    deleteSongChords,
     addSongToFavorite,
     removeSongFromFavorite
 };

@@ -5,7 +5,10 @@ const pool = new Pool({
   port: 5432,
   database: 'guitarist',
   user: 'postgres',
-  password: 'eliya100'
+  password: 'eliya100',
+  max: 30, // מקסימום 20 לקוחות בו זמנית
+  idleTimeoutMillis: 30000, // סגירת חיבורים שלא בשימוש אחרי 30 שניות
+  connectionTimeoutMillis: 2000, // כמה זמן לחכות לחיבור לפני שגיאה
 });
 
 module.exports = pool;

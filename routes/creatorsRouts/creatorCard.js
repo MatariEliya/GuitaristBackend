@@ -4,25 +4,20 @@ const path = require('path');
 const router = express.Router();
 const respositories = require("../../Repositories/creatorsRep");
 
-const { checkToken } = require("../../tokens");
+const { checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator } = require("../../tokens");
 const { upload, handleUpload } = require("./../uploadImages");
 
-router.get("/", async (req, res) => {
-    const verified = checkToken(req.headers);
-
-    if (!verified?.creator) {
-        return res.status(401).json({ message: "Invalid token" });
-    }
+router.get("/", checkTokenMiddlewareCreator, async (req, res) => {
 
     try {
-        const userId = verified?.user_id; // token includes user_id
+        const userId = req.user.user_id; // token includes user_id
         const result = await respositories.getSpecificCreatorCard(userId);
 
         if (result.rows.length === 0) {
             return res.status(200).json(null);
         }
         
-        result.rows[0].creatorName = verified.username;
+        result.rows[0].creatorName = req.user.username;
 
 
         return res.status(200).json(result.rows[0]);
@@ -32,12 +27,7 @@ router.get("/", async (req, res) => {
     }
 });
 
-router.put("/", checkTokenMiddleware, upload.single("Image"), async (req, res) => {
-    const verified = checkToken(req.headers);
-
-    if (!verified?.creator) {
-        return res.status(401).json({ message: "Invalid token" });
-    }
+router.put("/", checkTokenMiddlewareCreator, upload.single("Image"), async (req, res) => {
 
     const values = req.body;
 
@@ -66,7 +56,7 @@ router.put("/", checkTokenMiddleware, upload.single("Image"), async (req, res) =
     //לשנות את זה שיהיה בדיקה אם יש כרטיס 
     //אם יש לעדכן אם לא לעלות חדש
     try {
-        const userId = verified.user_id;
+        const userId = req.user.user_id;
 
 
         const result = await respositories.UpdateOrCreateCreatorCard(userId, values);
@@ -75,7 +65,7 @@ router.put("/", checkTokenMiddleware, upload.single("Image"), async (req, res) =
             const imagePath = path.join(
                 __dirname,
                 "../../images",
-                `${verified.username}_creator_card.webp`
+                `${req.user.username}_creator_card.webp`
             );
             if (req.file) {
                 fs.renameSync(req.file.path, imagePath);
@@ -94,12 +84,3 @@ router.put("/", checkTokenMiddleware, upload.single("Image"), async (req, res) =
 });
 
 module.exports = router;
-
-
-
-function checkTokenMiddleware(req, res, next) {
-    const verified = checkToken(req.headers);
-    if (!verified?.creator) return res.status(401).json({ message: "Invalid token" });
-    req.user = { username: verified.username, user_id: verified.user_id };
-    next();
-}

@@ -2,29 +2,7 @@ const pool = require("../dataBase");
 
 async function getChords() {
     return await pool.query(`
-        SELECT
-            chords.chord_id AS "chordId",
-            chords.name,
-            chords.capo,
-            chords.mute,
-            CASE WHEN chords.difficult = true THEN 1 ELSE 0 END AS difficult,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'string', COALESCE(fingers.string, 0),
-                        'fret', COALESCE(fingers.fret, 0),
-                        'barre', COALESCE(fingers.barre, 0),
-                        'isExist', CASE WHEN fingers.chord_id IS NULL THEN false ELSE true END
-                    ) ORDER BY f_num.finger_number
-                ),
-                '[]'
-            ) AS fingers
-        FROM chords
-        CROSS JOIN LATERAL generate_series(1, 4) AS f_num(finger_number)
-        LEFT JOIN fingers 
-            ON fingers.chord_id = chords.chord_id 
-        AND fingers.finger_number = f_num.finger_number
-        GROUP BY chords.chord_id, chords.name, chords.capo, chords.mute, chords.difficult;
+        SELECT * FROM chord_complete_data
     `);
 }
 
@@ -46,31 +24,19 @@ async function postFingers(chord_id, placeholders, values) {
 
 async function getChordsByCreator(creator_id) {
     return await pool.query(`
-        SELECT
-            chords.chord_id AS "chordId",
-            chords.name,
-            chords.capo,
-            chords.mute,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'string', COALESCE(fingers.string, 0),
-                        'fret', COALESCE(fingers.fret, 0),
-                        'barre', COALESCE(fingers.barre, 0),
-                        'isExist', CASE WHEN fingers.chord_id IS NULL THEN false ELSE true END
-                    ) ORDER BY f_num.finger_number
-                ),
-                '[]'
-            ) AS fingers
-        FROM chords
-        CROSS JOIN LATERAL generate_series(1, 4) AS f_num(finger_number)
-        LEFT JOIN fingers 
-            ON fingers.chord_id = chords.chord_id 
-        AND fingers.finger_number = f_num.finger_number
-        WHERE chords.creator_id = $1
-        GROUP BY chords.chord_id, chords.name, chords.capo, chords.mute, chords.difficult;
+        SELECT * FROM chord_complete_data
+        WHERE creator_id = $1
     `, [creator_id]);
 }
+
+async function getChordById(chord_id) {
+    return await pool.query(`
+        SELECT * FROM chord_complete_data
+        WHERE "chordId" = $1
+    `, [chord_id]);
+}
+
+
 
 async function deleteChord(creator_id, chord_id) {
     return await pool.query(`
@@ -80,10 +46,28 @@ async function deleteChord(creator_id, chord_id) {
     `, [creator_id, chord_id]);
 }
 
+async function updateChord(creator_id, chord_id, name, capo, mute, difficult) {
+    return await pool.query(`
+        UPDATE chords
+        SET name = $3, capo = $4, mute = $5, difficult = $6
+        WHERE creator_id = $1 AND chord_id = $2
+        RETURNING chord_id
+    `, [creator_id, chord_id, name, capo, mute, difficult]);
+}
+
+async function deleteChordFingers(chord_id) {
+    return await pool.query(`
+        DELETE FROM fingers
+        WHERE chord_id = $1
+    `, [chord_id]);
+}
 module.exports = {
     getChords,
     postChord,
     postFingers,
     getChordsByCreator,
-    deleteChord
+    getChordById,
+    deleteChord,
+    deleteChordFingers,
+    updateChord
 };

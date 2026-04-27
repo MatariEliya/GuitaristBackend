@@ -2,25 +2,18 @@ const pool = require("../dataBase");
 
 async function getSpecificCreatorCard(creatorId){
     return await pool.query(
-        `SELECT * FROM creator_card WHERE creator_id = $1`,
-        [creatorId]
-    );
-}
-async function getSpecificPublicCreatorCard(creatorId){
-    return await pool.query(
         //קבלת נתונים על היוצר
-        `SELECT cc.bio, cc.youtube, cc.instagram, cc.tiktok, cc.tag1, cc.tag2, cc.tag3, u.username AS "creatorName"
-        ,(cc.creator_id IS NOT NULL) AS "hasCreatorCard"
-        FROM creators c
+        `SELECT cc.bio, cc.youtube, cc.instagram, cc.tiktok, cc.tag1, cc.tag2, cc.tag3, cc.is_public , u.username AS "creatorName", u.user_id AS "creatorId"
+        FROM creator_card cc
 
-        JOIN users u ON u.user_id = c.user_id
-        LEFT JOIN creator_card cc ON cc.creator_id = c.user_id
-        WHERE c.user_id = $1 AND cc.is_public = true;`,
+        JOIN users u ON u.user_id = cc.creator_id
+
+
+        WHERE cc.creator_id = $1;`,
         [creatorId],
     );
 }
-
-async function getCreatorCards(creatorId){
+async function getCreatorCards(){
     return await pool.query(`
         SELECT creator_id AS "profileID", tag1, tag2, tag3, u.username AS "creatorName"
         FROM creator_card
@@ -130,7 +123,6 @@ async function deleteRequest(requestId, creatorId){
 
 module.exports = {
     getSpecificCreatorCard,
-    getSpecificPublicCreatorCard,
     getCreatorCards,
     getFeaturedCreators,
     UpdateOrCreateCreatorCard,
