@@ -78,22 +78,10 @@ router.post("/", checkTokenMiddlewareCreator, upload.single("image"), async (req
 
         const song_id = result.rows[0].song_id;
 
-        const placeholders = [];
-        const values = [];
+        const chordResult = await insertChords(chordsArray, song_id);
 
-        for (let i = 0; i < chordsArray.length; i++) {
-            placeholders.push(`($${1}, $${i * 2 + 2}, $${i * 2 + 3})`);
-            values.push(chordsArray[i].chordId, chordsArray[i].indexChord);
-        }
-        let resultChords;
-        if (placeholders.length > 0) {
-            try {
-                resultChords = await repository.addSongChords(song_id, placeholders, values);
-            } catch (error) {
-                console.error("Error adding song chords:", error);
-                await repository.deleteSong(creator_id, song_id);
-                return res.status(500).json({ message: "Failed to associate chords with song" });
-            }
+        if (!chordResult) {
+            return res.status(500).json({ message: "Failed to add song chords" });
         }
 
         // שינוי שם הקובץ
@@ -116,8 +104,7 @@ router.post("/", checkTokenMiddlewareCreator, upload.single("image"), async (req
 });
 
 
-router.post("/:id/favorite", checkTokenMiddleware, async (req, res) => {
-
+router.post("/favorite/:id", checkTokenMiddleware, async (req, res) => {
 
     try {
         const user_id = req.user.user_id;
@@ -152,20 +139,10 @@ router.put("/:id", checkTokenMiddlewareCreator, upload.single("image"), async (r
         }
         await repository.deleteSongChords(song_id);
 
-        const placeholders = [];
-        const values = [];
+        const chordResult = await insertChords(chordsArray, song_id);
 
-        for (let i = 0; i < chordsArray.length; i++) {
-            placeholders.push(`($${1}, $${i * 2 + 2}, $${i * 2 + 3})`);
-            values.push(chordsArray[i].chordId, chordsArray[i].indexChord);
-        }
-        if (placeholders.length > 0) {
-            try {
-                await repository.addSongChords(song_id, placeholders, values);
-            } catch (error) {
-                console.error("Error updating song chords:", error);
-                return res.status(500).json({ message: "Failed to update song chords" });
-            }
+        if (!chordResult) {
+            return res.status(500).json({ message: "Failed to update song chords" });
         }
 
         // שינוי שם הקובץ
@@ -224,3 +201,23 @@ router.delete("/:id", checkTokenMiddlewareCreator, async (req, res) => {
 module.exports = router;
 
 
+async function insertChords(chordsArray, song_id) {
+    const placeholders = [];
+    const values = [];
+
+    for (let i = 0; i < chordsArray.length; i++) {
+        placeholders.push(`($${1}, $${i * 2 + 2}, $${i * 2 + 3})`);
+        values.push(chordsArray[i].chordId, chordsArray[i].indexChord);
+    }
+    if (placeholders.length > 0) {
+        try {
+            await repository.addSongChords(song_id, placeholders.join(", "), values);
+            return true;
+        } catch (error) {
+            console.error("Error updating song chords:", error);
+            return false;
+        }
+    }
+    return false;
+
+}

@@ -4,11 +4,17 @@ const path = require('path');
 const pool = require('./dataBase');
 
 
+require('dotenv').config();
+
+
+
+
 const app = express();
-const PORT = 3001;
 
 // middleware
-app.use(cors()); // מאפשר ל-React לגשת לשרת
+app.use(cors({
+  origin: process.env.CLIENT_URL, // מאפשר רק לכתובת זו לגשת לשרת
+})); // מאפשר ל-React לגשת לשרת
 app.use(express.json()); // כדי שנוכל לשלוח JSON
 
 app.use('/images', express.static(path.join(__dirname, 'images')));// קישור לתמונות
@@ -16,25 +22,16 @@ app.use('/images', express.static(path.join(__dirname, 'images')));// קישור
 app.use("/login", require("./routes/login"))
 app.use("/signup", require("./routes/signup"))
 app.use("/uploadImages", require("./routes/uploadImages").router)
-app.use("/creators", require("./routes/creatorsRouts/creatorsMain"))
+app.use("/creators", require("./routes/creatorsRoutes/creatorsMain"))
 app.use("/chords", require("./routes/chords"))
 app.use("/songs", require("./routes/songs"))
 
-// נתיב בדיקה בסיסי
-app.get("/", (req, res) => {
-  res.send("🎉");
-});
-
-app.get('/users', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM users');
-    res.json(result.rows);
-  } catch (err) {
+app.use((err, req, res, next) => {
     console.error(err);
-    res.status(500).send('Server error');
-  }
+    res.status(500).json({ error: "Server error" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+
+app.listen(process.env.PORT, () => {
+  console.log(`Server started on port ${process.env.PORT}`);
 });

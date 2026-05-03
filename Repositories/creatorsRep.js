@@ -61,42 +61,6 @@ async function UpdateOrCreateCreatorCard(creatorId, values){
         [creatorId, values.tag1, values.tag2, values.tag3, values.bio, values.youtube,values.instagram, values.tiktok, values.isPublic]
     );
 }
-async function getSongsByCreator(creatorId){
-    return await pool.query(
-        `SELECT song_id AS "songID", name AS "songName", artist_name As "artist"
-        FROM songs WHERE creator_id = $1`,
-        [creatorId]
-    );
-}
-
-async function getChordsByCreator(creatorId){
-    return await pool.query(`
-        SELECT
-            chords.chord_id AS "chordId",
-            chords.name,
-            chords.capo,
-            chords.mute,
-            chords.difficult,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'string', COALESCE(fingers.string, 0),
-                        'fret', COALESCE(fingers.fret, 0),
-                        'barre', COALESCE(fingers.barre, 0),
-                        'isExist', CASE WHEN fingers.chord_id IS NULL THEN false ELSE true END
-                    ) ORDER BY f_num.finger_number
-                ),
-                '[]'
-            ) AS fingers
-        FROM chords
-        CROSS JOIN LATERAL generate_series(1, 4) AS f_num(finger_number)
-        LEFT JOIN fingers 
-            ON fingers.chord_id = chords.chord_id 
-        AND fingers.finger_number = f_num.finger_number
-        WHERE chords.creator_id = $1
-        GROUP BY chords.chord_id, chords.name, chords.capo, chords.mute, chords.difficult;
-    `, [creatorId]);
-}
 
 async function postRequest(creatorId, request){
     return await pool.query(
@@ -126,8 +90,6 @@ module.exports = {
     getCreatorCards,
     getFeaturedCreators,
     UpdateOrCreateCreatorCard,
-    getSongsByCreator,
-    getChordsByCreator,
     postRequest,
     getRequestsByCreator,
     deleteRequest

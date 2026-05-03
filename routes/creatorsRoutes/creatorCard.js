@@ -5,7 +5,7 @@ const router = express.Router();
 const respositories = require("../../Repositories/creatorsRep");
 
 const { checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator } = require("../../tokens");
-const { upload, handleUpload } = require("./../uploadImages");
+const { upload, handleUpload } = require("../uploadImages");
 
 router.get("/", checkTokenMiddlewareCreator, async (req, res) => {
 

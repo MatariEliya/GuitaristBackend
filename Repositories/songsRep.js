@@ -89,7 +89,7 @@ async function addSong(creatorId, name, artistName, startOnRight, lyrics) {
 async function addSongChords(songId, placeholders, values) {
     return await pool.query(`
         INSERT INTO song_chords (song_id, chord_id, chord_index)
-        VALUES ${placeholders.join(", ")}
+        VALUES ${placeholders}
     `, [songId, ...values]);
 }
 

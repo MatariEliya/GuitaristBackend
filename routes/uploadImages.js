@@ -4,8 +4,7 @@ const multer = require("multer");
 const path = require("path");
 const router = express.Router();
 
-// רשימת שימושים מותרת
-const allowedUses = ["creatorCard", "song"];
+
 
 // סטורג' של multer
 const storage = multer.diskStorage({

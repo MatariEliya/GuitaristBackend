@@ -1,12 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const respositories = require("../../Repositories/creatorsRep");
+const {getChordsByCreator} = require("../../Repositories/chordsRep");
+const {getSongsByCreator} = require("../../Repositories/songsRep");
 const { checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator } = require("../../tokens");
 
 const creatorCardRoutes = require("./creatorCard")
+const requestsRoutes = require("./requests")
 
 router.use("/creatorCard", creatorCardRoutes)
-router.use("/requests", require("./requests"))
+router.use("/requests", requestsRoutes)
 
 
 
@@ -29,11 +32,11 @@ router.get("/creatorInfo/:id", async (req, res) => {
             return res.status(404).json({ message: "Creator not found" });
         }
         //קבלת שירים של היוצר
-        const songs = await respositories.getSongsByCreator(creatorId);
+        const songs = await getSongsByCreator(creatorId);
         result.songs = songs.rows ? songs.rows : [];
 
         //קבלת אקורדים של היוצר
-        const chords = await respositories.getChordsByCreator(creatorId);
+        const chords = await getChordsByCreator(creatorId);
         result.chords = chords.rows ? chords.rows : [];
 
         res.json(result);
@@ -52,11 +55,11 @@ router.get("/creatorInfo", checkTokenMiddlewareCreator, async (req, res) => {
         const creatorInfo = await respositories.getSpecificCreatorCard(creatorId);
         const result = creatorInfo.rows[0] || {};
         //קבלת שירים של היוצר
-        const songs = await respositories.getSongsByCreator(creatorId);
+        const songs = await getSongsByCreator(creatorId);
         result.songs = songs.rows ? songs.rows : [];
 
         //קבלת אקורדים של היוצר
-        const chords = await respositories.getChordsByCreator(creatorId);
+        const chords = await getChordsByCreator(creatorId);
         result.chords = chords.rows ? chords.rows : [];
 
         res.json(result);

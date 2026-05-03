@@ -34,7 +34,10 @@ router.post("/", checkTokenMiddlewareCreator, async (req, res) => {
 
     try {
         const chord_result = await repository.postChord(creator_id, name, capo || 0, mute, difficult || false);
-        const chord_id = chord_result.rows[0].chord_id;
+        const chord_id = chord_result?.rows[0].chord_id;
+        if (!chord_id) {
+            return res.status(400).json({ message: "Failed to create chord" });
+        }
 
         //יצירת אצבעות
         const fingers_result = await insertFingers(fingers, chord_id);
@@ -74,7 +77,10 @@ router.put("/:id", checkTokenMiddlewareCreator, async (req, res) => {
         //מחיקת האצבעות הקיימות
         await repository.deleteChordFingers(chord_id);
         //יצירת אצבעות חדשות
-        await insertFingers(req.body.fingers, chord_id);
+        const fingers_result = await insertFingers(req.body.fingers, chord_id);
+        if (!fingers_result) {
+            return res.json({ message: "Chord updated successfully without fingers" });
+        }
         res.json({ message: "Chord updated successfully" });
     } catch (error) {
         console.error(error);

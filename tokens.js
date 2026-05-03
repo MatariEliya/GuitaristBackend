@@ -1,12 +1,14 @@
 const jwt = require("jsonwebtoken");
+const dotenv = require('dotenv');
+
 
 function createToken(userInfo) {
-    const tokenKey = "dkflgihp6960gy98";
+    const tokenKey = process.env.JWT_SECRET;
     return jwt.sign(userInfo, tokenKey, { expiresIn: "24h" });
 }
 
 function checkToken(headers) {
-    const tokenKey = "dkflgihp6960gy98";
+    const tokenKey = process.env.JWT_SECRET;
     const authHeader = headers["authorization"];
     if (!authHeader) return null; // אין טוקן
 
