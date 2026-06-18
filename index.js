@@ -21,7 +21,7 @@ app.use('/images', express.static(path.join(__dirname, 'images')));// קישור
 
 app.use("/login", require("./routes/login"))
 app.use("/signup", require("./routes/signup"))
-app.use("/uploadImages", require("./routes/uploadImages").router)
+app.use("/uploadImages", require("./uploadImages").router)
 app.use("/creators", require("./routes/creatorsRoutes/creatorsMain"))
 app.use("/chords", require("./routes/chords"))
 app.use("/songs", require("./routes/songs"))

@@ -69,7 +69,41 @@ router.get("/creatorInfo", checkTokenMiddlewareCreator, async (req, res) => {
     }
 });
 
+router.post("/creatorsList/:username", checkAdminPassword, async (req, res) => {
+    const username = req.params.username;
+    try {
+        const result = await respositories.makeNewCreator(username);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+router.get("/creatorsList", checkAdminPassword, async (req, res) => {
+    try {
+        const result = await respositories.getCreators();
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+router.delete("/creatorsList/:username", checkAdminPassword, async (req, res) => {
+    const username = req.params.username;
+    try {
+        const result = await respositories.deleteCreator(username);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
 
-
+function checkAdminPassword(req, res, next) {
+    if (req?.headers.authorization !== `bearer ${process.env.MENENGER_PASSWORD}`) {
+        return res.status(403).json({ message: "Forbidden" });
+    }
+    next();
+}
 
 module.exports = router

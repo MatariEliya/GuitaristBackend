@@ -4,7 +4,7 @@ const path = require("path");
 
 const repository = require("../Repositories/songsRep");
 const { checkToken, checkTokenMiddleware, checkTokenMiddlewareCreator } = require("../tokens");
-const { upload } = require("./uploadImages");
+const { upload } = require("../uploadImages");
 
 const router = express.Router();
 

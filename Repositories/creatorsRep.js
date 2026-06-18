@@ -84,6 +84,27 @@ async function deleteRequest(requestId, creatorId){
     );
 }
 
+async function makeNewCreator(username){
+    return await pool.query(
+        `INSERT INTO creators (user_id) VALUES ((SELECT user_id FROM users WHERE username = $1)) RETURNING user_id`,
+        [username]
+    );
+}
+async function getCreators(){
+    return await pool.query(
+        `SELECT c.user_id AS "profileID", u.username AS "creatorName"
+        FROM creators c
+        JOIN users u ON u.user_id = c.user_id`
+    );
+}
+async function deleteCreator(username){
+    return await pool.query(
+        `DELETE FROM creators
+        WHERE user_id = (SELECT user_id FROM users WHERE username = $1)`,
+        [username]
+    );
+}
+
 
 module.exports = {
     getSpecificCreatorCard,
@@ -92,5 +113,8 @@ module.exports = {
     UpdateOrCreateCreatorCard,
     postRequest,
     getRequestsByCreator,
-    deleteRequest
+    deleteRequest,
+    makeNewCreator,
+    getCreators,
+    deleteCreator
 }
